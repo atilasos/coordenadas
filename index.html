@@ -88,11 +88,30 @@
         </ul>
       </section>
 
+      <section class="story-panel" aria-label="Crónica de aventura">
+        <div class="story-panel__header">
+          <h2 id="adventure-title">Crónica em preparação</h2>
+          <span id="adventure-status" class="story-panel__status">—</span>
+        </div>
+        <p id="adventure-text">
+          Aguarda pelas ordens da guilda. Brevemente serás chamado para escolher o
+          teu destino através das coordenadas.
+        </p>
+        <ul id="adventure-choices" class="story-panel__choices" aria-live="polite">
+          <li class="story-panel__placeholder">
+            Consulta o painel das escolhas para saber que coordenada carregar.
+          </li>
+        </ul>
+      </section>
+
       <section class="feedback" aria-live="polite" aria-atomic="true">
         Observa a marcação-chave e escolhe a casa correta no mapa.
       </section>
 
       <section class="controls" aria-label="Painel de controlo">
+        <button id="adventure-button" type="button" class="btn btn--story">
+          Iniciar crónica
+        </button>
         <button id="hint-button" type="button" class="btn btn--secondary">
           Invocar dica
         </button>

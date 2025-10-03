@@ -1,3 +1,5 @@
+import { adventures } from "./adventure_data.js";
+
 const GRID_SIZE = 10;
 const TOTAL_MISSIONS = 8;
 const MAX_HINTS = 3;
@@ -16,10 +18,15 @@ const feedbackElement = document.querySelector(".feedback");
 const hintButton = document.querySelector("#hint-button");
 const resetButton = document.querySelector("#reset-button");
 const skillButton = document.querySelector("#skill-button");
+const adventureButton = document.querySelector("#adventure-button");
 const skillModal = document.querySelector("#skill-modal");
 const skillModalTitle = document.querySelector("#skill-modal-title");
 const skillModalBody = document.querySelector("#skill-modal-body");
 const skillItems = document.querySelectorAll(".skill");
+const adventureTitleElement = document.querySelector("#adventure-title");
+const adventureTextElement = document.querySelector("#adventure-text");
+const adventureChoicesElement = document.querySelector("#adventure-choices");
+const adventureStatusElement = document.querySelector("#adventure-status");
 
 const state = {
   score: 0,
@@ -30,6 +37,13 @@ const state = {
   locked: false,
   streak: 0,
   activeSkill: null,
+  adventure: null,
+  storyNode: null,
+  storyNodeId: null,
+  adventureStarted: false,
+  adventureIntroShown: false,
+  adventureCompleted: false,
+  availableChoices: new Map(),
 };
 
 const coordinates = [];
@@ -64,7 +78,9 @@ function createGrid() {
       button.className = "cell";
       button.setAttribute("data-x", String(x));
       button.setAttribute("data-y", String(y));
-      button.setAttribute("aria-label", `Coordenada (${x}, ${y})`);
+      const baseLabel = `Coordenada (${x}, ${y})`;
+      button.dataset.baseLabel = baseLabel;
+      button.setAttribute("aria-label", baseLabel);
 
       const coordinateLabel = document.createElement("span");
       coordinateLabel.textContent = `${x},${y}`;
@@ -106,12 +122,24 @@ function pickRandomCoordinate() {
 function updateUI() {
   scoreElement.textContent = String(state.score);
   roundElement.textContent = `${state.mission} / ${TOTAL_MISSIONS}`;
-  targetCoordinateElement.textContent = `(${state.target.x}, ${state.target.y})`;
+  if (state.storyNode) {
+    targetCoordinateElement.textContent = "Escolhe uma coordenada da crónica";
+    targetCoordinateElement.classList.add("target-coordinate--glow");
+  } else {
+    targetCoordinateElement.textContent = `(${state.target.x}, ${state.target.y})`;
+    targetCoordinateElement.classList.remove("target-coordinate--glow");
+  }
   energyLabelElement.textContent = `${state.energy} energia${state.energy === 1 ? "" : "s"}`;
   updateEnergyBar();
-  hintButton.disabled = state.hintsUsed >= MAX_HINTS || state.locked || state.energy === 0;
+  const storyActive = Boolean(state.storyNode);
+  hintButton.disabled = storyActive || state.hintsUsed >= MAX_HINTS || state.locked || state.energy === 0;
   resetButton.disabled = false;
-  skillButton.disabled = Boolean(state.activeSkill) || state.locked;
+  skillButton.disabled = storyActive || Boolean(state.activeSkill) || state.locked;
+  if (adventureButton) {
+    adventureButton.disabled = state.locked || state.adventureCompleted;
+    adventureButton.textContent = state.storyNode ? "Aventura em curso" : "Iniciar crónica";
+    adventureButton.classList.toggle("btn--story-active", Boolean(state.storyNode));
+  }
   skillItems.forEach((item) => {
     item.classList.toggle("skill--active", item.dataset.skill === state.activeSkill);
   });
@@ -174,6 +202,11 @@ function handleCellClick(x, y, button) {
     return;
   }
 
+  if (state.storyNode) {
+    handleAdventureChoice(x, y, button);
+    return;
+  }
+
   const isCorrect = x === state.target.x && y === state.target.y;
 
   if (!isCorrect) {
@@ -211,6 +244,9 @@ function startRound() {
   pickRandomCoordinate();
   state.energy = FULL_ENERGY;
   state.activeSkill = null;
+  state.storyNode = null;
+  state.storyNodeId = null;
+  state.availableChoices.clear();
   updateUI();
   setFeedback("Observa a marcação-chave e escolhe a casa correta no mapa.");
 }
@@ -249,6 +285,13 @@ function resetGame() {
   state.locked = false;
   state.streak = 0;
   state.activeSkill = null;
+  state.adventureStarted = false;
+  state.adventureIntroShown = false;
+  state.adventureCompleted = false;
+  state.storyNode = null;
+  state.storyNodeId = null;
+  state.availableChoices.clear();
+  state.adventure = null;
 
   clearHighlights();
   startRound();
