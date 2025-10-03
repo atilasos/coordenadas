@@ -43,6 +43,7 @@ const state = {
   adventureStarted: false,
   adventureIntroShown: false,
   adventureCompleted: false,
+  adventureSummary: null,
   availableChoices: new Map(),
 };
 
@@ -136,9 +137,17 @@ function updateUI() {
   resetButton.disabled = false;
   skillButton.disabled = storyActive || Boolean(state.activeSkill) || state.locked;
   if (adventureButton) {
-    adventureButton.disabled = state.locked || state.adventureCompleted;
-    adventureButton.textContent = state.storyNode ? "Aventura em curso" : "Iniciar crónica";
-    adventureButton.classList.toggle("btn--story-active", Boolean(state.storyNode));
+    adventureButton.disabled = state.locked || (state.adventureCompleted && !state.storyNode);
+    if (state.storyNode) {
+      adventureButton.textContent = "Aventura em curso";
+      adventureButton.classList.add("btn--story-active");
+    } else if (state.adventureCompleted) {
+      adventureButton.textContent = "Crónica concluída";
+      adventureButton.classList.remove("btn--story-active");
+    } else {
+      adventureButton.textContent = "Iniciar crónica";
+      adventureButton.classList.remove("btn--story-active");
+    }
   }
   skillItems.forEach((item) => {
     item.classList.toggle("skill--active", item.dataset.skill === state.activeSkill);
@@ -153,6 +162,224 @@ function setFeedback(message, type = "neutral") {
 function updateEnergyBar() {
   const percentage = (state.energy / FULL_ENERGY) * 100;
   energyBarElement.style.width = `${percentage}%`;
+}
+
+function getChoiceKey(x, y) {
+  return `${x},${y}`;
+}
+
+function getCellElement(x, y) {
+  const match = coordinates.find((cell) => cell.x === x && cell.y === y);
+  return match ? match.element : null;
+}
+
+function clearStoryHighlights() {
+  coordinates.forEach(({ element }) => {
+    element.classList.remove("cell--story-option");
+    const baseLabel = element.dataset.baseLabel;
+    if (baseLabel) {
+      element.setAttribute("aria-label", baseLabel);
+    }
+  });
+}
+
+function setAdventureStatus(text, variant = "neutral") {
+  if (!adventureStatusElement) {
+    return;
+  }
+
+  adventureStatusElement.textContent = text;
+  adventureStatusElement.classList.remove(
+    "story-panel__status--success",
+    "story-panel__status--danger"
+  );
+
+  if (variant === "success") {
+    adventureStatusElement.classList.add("story-panel__status--success");
+  } else if (variant === "danger") {
+    adventureStatusElement.classList.add("story-panel__status--danger");
+  }
+}
+
+function resetAdventurePanel() {
+  if (adventureTitleElement) {
+    adventureTitleElement.textContent = "Crónica em preparação";
+  }
+  if (adventureTextElement) {
+    adventureTextElement.textContent =
+      "Aguarda pelas ordens da guilda. Brevemente serás chamado para escolher o teu destino através das coordenadas.";
+  }
+  if (adventureChoicesElement) {
+    adventureChoicesElement.innerHTML = "";
+    const placeholder = document.createElement("li");
+    placeholder.className = "story-panel__placeholder";
+    placeholder.textContent =
+      "Consulta o painel das escolhas para saber que coordenada carregar.";
+    adventureChoicesElement.appendChild(placeholder);
+  }
+  setAdventureStatus("—");
+}
+
+function tryStartAdventure() {
+  if (state.locked) {
+    return;
+  }
+
+  if (state.storyNode) {
+    setFeedback("A crónica já está em curso. Usa as coordenadas indicadas!", "info");
+    return;
+  }
+
+  const adventure = state.adventure ?? adventures[0];
+  if (!adventure) {
+    setFeedback("Ainda não há crónicas disponíveis.", "info");
+    return;
+  }
+
+  startAdventure(adventure);
+}
+
+function startAdventure(adventure) {
+  clearStoryHighlights();
+  state.adventure = adventure;
+  state.adventureStarted = true;
+  state.adventureIntroShown = true;
+  state.adventureCompleted = false;
+  state.adventureSummary = null;
+  state.storyNodeId = "start";
+  state.storyNode = null;
+  state.availableChoices.clear();
+
+  if (adventureTitleElement) {
+    adventureTitleElement.textContent = adventure.title;
+  }
+
+  setAdventureStatus("Missão activa");
+  setFeedback("A crónica começou! Escolhe a coordenada indicada para avançar.", "info");
+  showStoryNode("start");
+}
+
+function showStoryNode(nodeId) {
+  if (!state.adventure) {
+    return;
+  }
+
+  const node = state.adventure.nodes?.[nodeId];
+  if (!node) {
+    setFeedback("Esse caminho ainda está por mapear.", "error");
+    return;
+  }
+
+  state.storyNodeId = nodeId;
+  state.storyNode = node;
+  state.availableChoices.clear();
+  renderStoryNode(node);
+  updateUI();
+}
+
+function renderStoryNode(node) {
+  if (adventureTextElement) {
+    adventureTextElement.textContent = node.text;
+  }
+
+  if (!adventureChoicesElement) {
+    return;
+  }
+
+  adventureChoicesElement.innerHTML = "";
+  clearStoryHighlights();
+
+  if (node.choices && node.choices.length > 0) {
+    setAdventureStatus("Missão activa");
+
+    node.choices.forEach((choice) => {
+      const { x, y } = choice.coordinate;
+      const key = getChoiceKey(x, y);
+      state.availableChoices.set(key, choice);
+
+      const listItem = document.createElement("li");
+      listItem.className = "story-panel__choice";
+
+      const textSpan = document.createElement("span");
+      textSpan.textContent = choice.label;
+
+      const coordSpan = document.createElement("span");
+      coordSpan.className = "story-panel__coordinate";
+      coordSpan.textContent = `(${x}, ${y})`;
+
+      listItem.append(textSpan, coordSpan);
+      adventureChoicesElement.appendChild(listItem);
+
+      const cell = getCellElement(x, y);
+      if (cell) {
+        cell.classList.add("cell--story-option");
+        const baseLabel = cell.dataset.baseLabel ?? `Coordenada (${x}, ${y})`;
+        cell.setAttribute("aria-label", `${baseLabel} — escolha "${choice.label}"`);
+      }
+    });
+  } else if (node.ending) {
+    handleAdventureEnding(node);
+  } else {
+    const placeholder = document.createElement("li");
+    placeholder.className = "story-panel__placeholder";
+    placeholder.textContent = "A crónica permanece em suspense...";
+    adventureChoicesElement.appendChild(placeholder);
+  }
+}
+
+function handleAdventureChoice(x, y, button) {
+  const key = getChoiceKey(x, y);
+  const choice = state.availableChoices.get(key);
+
+  if (!choice) {
+    button.classList.add("cell--incorrect");
+    setFeedback("Essa coordenada não está entre as escolhas actuais.", "error");
+    return;
+  }
+
+  button.classList.add("cell--correct");
+  setFeedback(`Escolheste ${choice.label}.`, "info");
+
+  if (choice.next) {
+    showStoryNode(choice.next);
+  } else {
+    state.storyNode = null;
+    state.storyNodeId = null;
+    state.availableChoices.clear();
+    clearStoryHighlights();
+    updateUI();
+    setAdventureStatus("Crónica suspensa");
+  }
+}
+
+function handleAdventureEnding(node) {
+  state.availableChoices.clear();
+  clearStoryHighlights();
+
+  if (!adventureChoicesElement) {
+    return;
+  }
+
+  const summaryItem = document.createElement("li");
+  summaryItem.className = "story-panel__placeholder";
+  summaryItem.textContent = node.text;
+  adventureChoicesElement.appendChild(summaryItem);
+
+  if (node.ending === "success") {
+    setAdventureStatus("Tesouro conquistado!", "success");
+    setFeedback("Parabéns! Concluíste a crónica com sucesso.", "success");
+    state.adventureCompleted = true;
+    state.adventureSummary = node.text;
+  } else if (node.ending === "retry") {
+    setAdventureStatus("Armadilha!", "danger");
+    setFeedback("A armadilha devolveu-te à entrada. Reúne coragem e começa de novo!", "error");
+    state.adventureStarted = false;
+    state.adventureIntroShown = false;
+  }
+
+  state.storyNode = null;
+  state.storyNodeId = null;
+  updateUI();
 }
 
 function highlightAxes(x, y) {
@@ -188,6 +415,18 @@ function clearAxisHighlight() {
       .querySelectorAll(".axis-label--active")
       .forEach((label) => label.classList.remove("axis-label--active"));
   }
+}
+
+function renderAdventureSummary() {
+  if (!adventureChoicesElement || !state.adventureSummary) {
+    return;
+  }
+
+  adventureChoicesElement.innerHTML = "";
+  const summaryItem = document.createElement("li");
+  summaryItem.className = "story-panel__placeholder";
+  summaryItem.textContent = state.adventureSummary;
+  adventureChoicesElement.appendChild(summaryItem);
 }
 
 function clearHighlights() {
@@ -247,6 +486,9 @@ function startRound() {
   state.storyNode = null;
   state.storyNodeId = null;
   state.availableChoices.clear();
+  if (state.adventureCompleted && state.adventureSummary) {
+    renderAdventureSummary();
+  }
   updateUI();
   setFeedback("Observa a marcação-chave e escolhe a casa correta no mapa.");
 }
@@ -288,6 +530,7 @@ function resetGame() {
   state.adventureStarted = false;
   state.adventureIntroShown = false;
   state.adventureCompleted = false;
+  state.adventureSummary = null;
   state.storyNode = null;
   state.storyNodeId = null;
   state.availableChoices.clear();
@@ -475,6 +718,9 @@ function getRank() {
 hintButton.addEventListener("click", giveHint);
 resetButton.addEventListener("click", resetGame);
 skillButton.addEventListener("click", activateSkill);
+if (adventureButton) {
+  adventureButton.addEventListener("click", tryStartAdventure);
+}
 
 if (skillModal) {
   skillModal.addEventListener("close", () => {

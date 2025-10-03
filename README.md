@@ -17,6 +17,14 @@ Completa 8 missões no mapa mágico da Floresta das Estrelas. Em cada missão, o
 - **Dicas**: até 3 por campanha. Mostram a coluna correcta.
 - **Títulos**: no final, recebes um título como “Grande Cartógrafo” conforme a pontuação.
 
+## Modo aventura
+
+- Clica em `Iniciar crónica` para entrar numa história interactiva.
+- Lê o texto no painel da crónica e identifica as coordenadas indicadas.
+- Cada escolha corresponde a uma casa do tabuleiro; segue as instruções para avançar.
+- Casas válidas ficam destacadas com um brilho azulado. Coordenadas erradas dão feedback imediato.
+- Existem finais de sucesso (tesouro) e finais de falha (armadilha). No sucesso é mostrado um resumo; numa armadilha podes tentar novamente.
+
 ## Como jogar
 
 1. Abre `index.html` num navegador moderno.
@@ -37,6 +45,7 @@ Completa 8 missões no mapa mágico da Floresta das Estrelas. Em cada missão, o
 - Ajusta o tamanho da grelha (`GRID_SIZE`) em `script.js` para escalar desafios.
 - Experimenta novas habilidades no livro de feitiços.
 - Altera a paleta em `styles.css` para adaptar à identidade visual da escola.
+- Acrescenta novas aventuras editando `adventure_data.js`, seguindo a estrutura de `nodes` (cada nó possui texto, escolhas e finais).
 
 ---
 
