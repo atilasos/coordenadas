@@ -261,10 +261,23 @@ body {
   letter-spacing: 0.02em;
 }
 
+.cell__coords {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-size: 0.9rem;
+}
+
 .cell:hover {
   transform: translateY(-5px) scale(1.02);
   border-color: rgba(94, 116, 219, 0.4);
   box-shadow: 0 12px 20px rgba(74, 85, 162, 0.15);
+}
+
+.cell:focus-visible .cell__coords,
+.cell:hover .cell__coords {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .cell--target {
@@ -363,6 +376,44 @@ body {
   right: 32px;
   bottom: calc(32px - 4px);
   height: 4px;
+}
+
+.axis-labels {
+  position: absolute;
+  display: grid;
+  pointer-events: none;
+  color: rgba(59, 64, 126, 0.38);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.axis-labels--y {
+  top: 32px;
+  bottom: 32px;
+  left: 4px;
+  grid-template-rows: repeat(10, 1fr);
+  align-items: center;
+  text-align: right;
+  gap: 7px;
+}
+
+.axis-labels--x {
+  left: 32px;
+  right: 32px;
+  bottom: 4px;
+  grid-template-columns: repeat(10, 1fr);
+  justify-items: center;
+  gap: 7px;
+}
+
+.axis-label {
+  opacity: 0.1;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.axis-label--active {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 

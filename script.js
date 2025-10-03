@@ -10,6 +10,8 @@ const roundElement = document.querySelector("#round");
 const targetCoordinateElement = document.querySelector("#target-coordinate");
 const energyLabelElement = document.querySelector("#energy-label");
 const energyBarElement = document.querySelector("#energy-bar");
+const axisLabelsY = document.querySelector(".axis-labels--y");
+const axisLabelsX = document.querySelector(".axis-labels--x");
 const feedbackElement = document.querySelector(".feedback");
 const hintButton = document.querySelector("#hint-button");
 const resetButton = document.querySelector("#reset-button");
@@ -28,16 +30,34 @@ const state = {
   locked: false,
   streak: 0,
   activeSkill: null,
-  pendingEffect: null,
 };
 
 const coordinates = [];
 
 function createGrid() {
+  if (!gridElement) {
+    return;
+  }
+
   gridElement.innerHTML = "";
+  if (axisLabelsY) {
+    axisLabelsY.innerHTML = "";
+  }
+  if (axisLabelsX) {
+    axisLabelsX.innerHTML = "";
+  }
   coordinates.length = 0;
 
   for (let y = GRID_SIZE; y >= 1; y -= 1) {
+    if (axisLabelsY) {
+      const axisLabelY = document.createElement("span");
+      axisLabelY.textContent = String(y);
+      axisLabelY.className = "axis-label";
+      axisLabelY.dataset.axis = "y";
+      axisLabelY.dataset.value = String(y);
+      axisLabelsY.appendChild(axisLabelY);
+    }
+
     for (let x = 1; x <= GRID_SIZE; x += 1) {
       const button = document.createElement("button");
       button.type = "button";
@@ -46,14 +66,30 @@ function createGrid() {
       button.setAttribute("data-y", String(y));
       button.setAttribute("aria-label", `Coordenada (${x}, ${y})`);
 
-      const label = document.createElement("span");
-      label.textContent = `${x},${y}`;
-      button.appendChild(label);
+      const coordinateLabel = document.createElement("span");
+      coordinateLabel.textContent = `${x},${y}`;
+      coordinateLabel.className = "cell__coords";
+      button.appendChild(coordinateLabel);
 
       button.addEventListener("click", () => handleCellClick(x, y, button));
+      button.addEventListener("mouseenter", () => highlightAxes(x, y));
+      button.addEventListener("focus", () => highlightAxes(x, y));
+      button.addEventListener("mouseleave", clearAxisHighlight);
+      button.addEventListener("blur", clearAxisHighlight);
 
       gridElement.appendChild(button);
       coordinates.push({ x, y, element: button });
+    }
+  }
+
+  if (axisLabelsX) {
+    for (let x = 1; x <= GRID_SIZE; x += 1) {
+      const axisLabelX = document.createElement("span");
+      axisLabelX.textContent = String(x);
+      axisLabelX.className = "axis-label";
+      axisLabelX.dataset.axis = "x";
+      axisLabelX.dataset.value = String(x);
+      axisLabelsX.appendChild(axisLabelX);
     }
   }
 }
@@ -91,10 +127,46 @@ function updateEnergyBar() {
   energyBarElement.style.width = `${percentage}%`;
 }
 
+function highlightAxes(x, y) {
+  if (!axisLabelsX && !axisLabelsY) {
+    return;
+  }
+
+  clearAxisHighlight();
+
+  if (axisLabelsX) {
+    const labelX = axisLabelsX.querySelector(`[data-value="${x}"]`);
+    if (labelX) {
+      labelX.classList.add("axis-label--active");
+    }
+  }
+
+  if (axisLabelsY) {
+    const labelY = axisLabelsY.querySelector(`[data-value="${y}"]`);
+    if (labelY) {
+      labelY.classList.add("axis-label--active");
+    }
+  }
+}
+
+function clearAxisHighlight() {
+  if (axisLabelsX) {
+    axisLabelsX
+      .querySelectorAll(".axis-label--active")
+      .forEach((label) => label.classList.remove("axis-label--active"));
+  }
+  if (axisLabelsY) {
+    axisLabelsY
+      .querySelectorAll(".axis-label--active")
+      .forEach((label) => label.classList.remove("axis-label--active"));
+  }
+}
+
 function clearHighlights() {
   coordinates.forEach(({ element }) => {
     element.classList.remove("cell--correct", "cell--incorrect", "cell--target", "cell--locked");
   });
+  clearAxisHighlight();
 }
 
 function handleCellClick(x, y, button) {
@@ -109,6 +181,7 @@ function handleCellClick(x, y, button) {
   }
 
   clearHighlights();
+  highlightAxes(x, y);
   button.classList.add(isCorrect ? "cell--correct" : "cell--incorrect");
 
   if (isCorrect) {
