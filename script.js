@@ -1,23 +1,34 @@
 const GRID_SIZE = 10;
-const TOTAL_ROUNDS = 10;
+const TOTAL_MISSIONS = 8;
 const MAX_HINTS = 3;
+const FULL_ENERGY = 3;
+const STREAK_TARGET = 3;
 
 const gridElement = document.querySelector(".grid");
 const scoreElement = document.querySelector("#score");
 const roundElement = document.querySelector("#round");
 const targetCoordinateElement = document.querySelector("#target-coordinate");
-const attemptsElement = document.querySelector("#attempts");
+const energyLabelElement = document.querySelector("#energy-label");
+const energyBarElement = document.querySelector("#energy-bar");
 const feedbackElement = document.querySelector(".feedback");
 const hintButton = document.querySelector("#hint-button");
 const resetButton = document.querySelector("#reset-button");
+const skillButton = document.querySelector("#skill-button");
+const skillModal = document.querySelector("#skill-modal");
+const skillModalTitle = document.querySelector("#skill-modal-title");
+const skillModalBody = document.querySelector("#skill-modal-body");
+const skillItems = document.querySelectorAll(".skill");
 
 const state = {
   score: 0,
-  round: 1,
-  attempts: 0,
+  mission: 1,
+  energy: FULL_ENERGY,
   hintsUsed: 0,
   target: { x: 1, y: 1 },
   locked: false,
+  streak: 0,
+  activeSkill: null,
+  pendingEffect: null,
 };
 
 const coordinates = [];
@@ -58,11 +69,16 @@ function pickRandomCoordinate() {
 
 function updateUI() {
   scoreElement.textContent = String(state.score);
-  roundElement.textContent = `${state.round} / ${TOTAL_ROUNDS}`;
+  roundElement.textContent = `${state.mission} / ${TOTAL_MISSIONS}`;
   targetCoordinateElement.textContent = `(${state.target.x}, ${state.target.y})`;
-  attemptsElement.textContent = String(state.attempts);
-  hintButton.disabled = state.hintsUsed >= MAX_HINTS || state.locked;
+  energyLabelElement.textContent = `${state.energy} energia${state.energy === 1 ? "" : "s"}`;
+  updateEnergyBar();
+  hintButton.disabled = state.hintsUsed >= MAX_HINTS || state.locked || state.energy === 0;
   resetButton.disabled = false;
+  skillButton.disabled = Boolean(state.activeSkill) || state.locked;
+  skillItems.forEach((item) => {
+    item.classList.toggle("skill--active", item.dataset.skill === state.activeSkill);
+  });
 }
 
 function setFeedback(message, type = "neutral") {
@@ -70,9 +86,14 @@ function setFeedback(message, type = "neutral") {
   feedbackElement.className = `feedback feedback--${type}`;
 }
 
+function updateEnergyBar() {
+  const percentage = (state.energy / FULL_ENERGY) * 100;
+  energyBarElement.style.width = `${percentage}%`;
+}
+
 function clearHighlights() {
   coordinates.forEach(({ element }) => {
-    element.classList.remove("cell--correct", "cell--incorrect", "cell--target");
+    element.classList.remove("cell--correct", "cell--incorrect", "cell--target", "cell--locked");
   });
 }
 
@@ -81,48 +102,33 @@ function handleCellClick(x, y, button) {
     return;
   }
 
-  state.attempts += 1;
-  attemptsElement.textContent = String(state.attempts);
-
   const isCorrect = x === state.target.x && y === state.target.y;
+
+  if (!isCorrect) {
+    consumeEnergy();
+  }
 
   clearHighlights();
   button.classList.add(isCorrect ? "cell--correct" : "cell--incorrect");
 
   if (isCorrect) {
-    const starsEarned = state.attempts === 1 ? 1 : state.attempts === 2 ? 0.5 : 0;
-    state.score += starsEarned;
-    scoreElement.textContent = state.score.toString();
-
-    if (starsEarned === 1) {
-      setFeedback("Perfeito! Você ganhou 1 estrela!", "success");
-    } else if (starsEarned === 0.5) {
-      setFeedback("Boa! Você ganhou meia estrela.", "success");
-    } else {
-      setFeedback("Acertou! Continue treinando para ganhar mais estrelas.", "success");
-    }
-
-    if (state.round >= TOTAL_ROUNDS) {
-      finishGame();
-    } else {
-      state.round += 1;
-      state.attempts = 0;
-      state.locked = true;
-      setTimeout(() => {
-        state.locked = false;
-        startRound();
-      }, 1000);
-    }
+    resolveMissionSuccess();
   } else {
-    setFeedback("Ops! Observe os eixos e tente novamente.", "error");
+    setFeedback("O feitiço falhou! Observa os eixos e tenta de novo.", "error");
+    state.streak = 0;
+    if (state.energy === 0) {
+      resolveMissionFailure();
+    }
   }
 }
 
 function finishGame() {
   state.locked = true;
   hintButton.disabled = true;
+  skillButton.disabled = true;
+  const rank = getRank();
   setFeedback(
-    `Fim do jogo! Você conquistou ${state.score} estrelas. Clique em "Jogar de novo" para continuar treinando.`,
+    `Campanha concluída! Conquistaste ${state.score} estrelas-guia e recebeste o título "${rank}". Clica em "Nova campanha" para jogar outra vez.`,
     "success"
   );
 }
@@ -130,17 +136,25 @@ function finishGame() {
 function startRound() {
   clearHighlights();
   pickRandomCoordinate();
+  state.energy = FULL_ENERGY;
+  state.activeSkill = null;
   updateUI();
-  setFeedback("Clique na casa que combina com a coordenada mostrada acima.");
+  setFeedback("Observa a marcação-chave e escolhe a casa correta no mapa.");
 }
 
 function giveHint() {
-  if (state.hintsUsed >= MAX_HINTS || state.locked) {
+  if (state.hintsUsed >= MAX_HINTS || state.locked || state.energy === 0) {
     return;
   }
 
   state.hintsUsed += 1;
   hintButton.disabled = state.hintsUsed >= MAX_HINTS;
+
+  if (state.activeSkill !== "shield") {
+    consumeEnergy({ triggerFailure: false });
+  } else {
+    setFeedback("Escudo de Quadrícula absorveu o custo da dica!", "info");
+  }
 
   clearHighlights();
 
@@ -149,24 +163,208 @@ function giveHint() {
     .forEach(({ element }) => element.classList.add("cell--target"));
 
   setFeedback(
-    `Dica: a coluna correta é a do número X = ${state.target.x}.`,
+    `Dica invocada: a coluna correta é a do número X = ${state.target.x}.`,
     "info"
   );
 }
 
 function resetGame() {
   state.score = 0;
-  state.round = 1;
-  state.attempts = 0;
+  state.mission = 1;
+  state.energy = FULL_ENERGY;
   state.hintsUsed = 0;
   state.locked = false;
+  state.streak = 0;
+  state.activeSkill = null;
 
   clearHighlights();
   startRound();
 }
 
+function consumeEnergy({ triggerFailure = true } = {}) {
+  if (state.energy > 0) {
+    state.energy -= 1;
+    updateUI();
+  }
+
+  if (state.energy === 0 && triggerFailure) {
+    resolveMissionFailure();
+  }
+}
+
+function resolveMissionSuccess() {
+  const starsEarned = computeStarsEarned();
+  state.score = parseFloat((state.score + starsEarned).toFixed(1));
+  state.streak += 1;
+  updateUI();
+
+  if (state.activeSkill === "spark") {
+    setFeedback("Faísca de Precisão acertou em cheio! 2 estrelas-guia garantidas.", "success");
+  } else if (state.activeSkill === "shield") {
+    setFeedback("Escudo de Quadrícula manteve a energia. Estrela-guia assegurada!", "success");
+  } else if (state.activeSkill === "bloom" && state.streak >= STREAK_TARGET) {
+    triggerBloomAnimation();
+    setFeedback("Flor Luminescente floresceu! Sequência perfeita!", "success");
+  } else {
+    narrateReward(starsEarned);
+  }
+
+  if (state.mission >= TOTAL_MISSIONS) {
+    finishGame();
+    return;
+  }
+
+  state.mission += 1;
+  state.locked = true;
+  setTimeout(() => {
+    state.locked = false;
+    startRound();
+  }, 1100);
+}
+
+function resolveMissionFailure() {
+  state.locked = true;
+  setFeedback("Energia esgotada! Respira fundo e tenta outra missão.", "error");
+  setTimeout(() => {
+    if (state.mission >= TOTAL_MISSIONS) {
+      finishGame();
+      return;
+    }
+    state.mission += 1;
+    state.locked = false;
+    startRound();
+  }, 1300);
+}
+
+function computeStarsEarned() {
+  if (state.activeSkill === "spark") {
+    return 2;
+  }
+
+  let stars = 0.5;
+
+  if (state.energy === FULL_ENERGY) {
+    stars = 1.5;
+  } else if (state.energy === FULL_ENERGY - 1) {
+    stars = 1;
+  }
+
+  if (state.activeSkill === "shield") {
+    stars = Math.max(stars, 1);
+  }
+
+  if (state.activeSkill === "bloom" && state.streak >= STREAK_TARGET) {
+    stars += 0.5;
+  }
+
+  return parseFloat(stars.toFixed(1));
+}
+
+function narrateReward(starsEarned) {
+  if (starsEarned >= 1.5) {
+    setFeedback("Precisão lendária! Ganhaste 1,5 estrelas-guia.", "success");
+  } else if (starsEarned >= 1) {
+    setFeedback("Boa mira! Mais 1 estrela-guia para a tua coleção.", "success");
+  } else {
+    setFeedback("Missão cumprida. Ganhaste meia estrela-guia.", "success");
+  }
+}
+
+function activateSkill() {
+  if (state.locked || state.activeSkill) {
+    return;
+  }
+
+  const availableSkills = getAvailableSkills();
+  if (availableSkills.length === 0) {
+    setFeedback("As habilidades estão a recarregar. Continua a missão!", "info");
+    return;
+  }
+
+  const randomIndex = Math.floor(Math.random() * availableSkills.length);
+  const skill = availableSkills[randomIndex];
+
+  state.activeSkill = skill;
+  updateUI();
+  openSkillModal(skill);
+  describeSkillActivation(skill);
+}
+
+function getAvailableSkills() {
+  const skills = ["spark", "shield"];
+  if (state.streak >= STREAK_TARGET - 1) {
+    skills.push("bloom");
+  }
+  return skills;
+}
+
+function openSkillModal(skill) {
+  if (!skillModal) {
+    return;
+  }
+
+  const descriptions = {
+    spark: {
+      title: "Faísca de Precisão ativada!",
+      body: "Se acertares nesta jogada, recebes 2 estrelas-guia.",
+    },
+    shield: {
+      title: "Escudo de Quadrícula erguido!",
+      body: "Usa uma dica nesta jogada sem perder energia e garante 1 estrela.",
+    },
+    bloom: {
+      title: "Flor Luminescente a desabrochar!",
+      body: "Acerta mais uma vez para libertar luzes mágicas e ganhar luz extra.",
+    },
+  };
+
+  const { title, body } = descriptions[skill];
+  skillModalTitle.textContent = title;
+  skillModalBody.textContent = body;
+  if (typeof skillModal.showModal === "function") {
+    skillModal.showModal();
+  }
+}
+
+function describeSkillActivation(skill) {
+  const descriptions = {
+    spark: "A tua mira fica perfeita nesta jogada.",
+    shield: "A próxima dica não consome energia.",
+    bloom: "Mantém a sequência e enche o mapa de luz!",
+  };
+
+  setFeedback(`Habilidade pronta: ${descriptions[skill]}`, "info");
+}
+
+function triggerBloomAnimation() {
+  document.body.classList.add("bloom-active");
+  setTimeout(() => {
+    document.body.classList.remove("bloom-active");
+  }, 1600);
+}
+
+function getRank() {
+  if (state.score >= 12) {
+    return "Grande Cartógrafo";
+  }
+  if (state.score >= 10) {
+    return "Guardião das Estrelas";
+  }
+  if (state.score >= 8) {
+    return "Explorador Mestre";
+  }
+  return "Aprendiz de Coordenadas";
+}
+
 hintButton.addEventListener("click", giveHint);
 resetButton.addEventListener("click", resetGame);
+skillButton.addEventListener("click", activateSkill);
+
+if (skillModal) {
+  skillModal.addEventListener("close", () => {
+    skillButton.focus();
+  });
+}
 
 createGrid();
 resetGame();

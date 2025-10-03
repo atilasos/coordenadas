@@ -1,80 +1,128 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Caça às Coordenadas</title>
+    <title>Ordem dos Exploradores Coordenados</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&family=Poppins:wght@400;600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
     <main class="page">
-      <header class="page__header">
-        <h1>Caça às Coordenadas</h1>
+      <header class="page__header" role="banner">
+        <div class="crest" aria-hidden="true">
+          <span class="crest__icon">✦</span>
+        </div>
+        <h1>Ordem dos Exploradores Coordenados</h1>
         <p>
-          Ajude o explorador a encontrar os tesouros do mapa! Observe as
-          coordenadas, clique no quadradinho correto e ganhe estrelas.
+          Junta-te à guilda, aprende a ler o mapa de quadrículas mágicas e usa as
+          coordenadas para lançar habilidades e proteger a Floresta das Estrelas.
         </p>
       </header>
 
       <section class="status-panel" aria-label="Painel do jogo">
-        <div class="status-panel__item">
-          <h2>Rodada</h2>
-          <p id="round">1 / 10</p>
-        </div>
-        <div class="status-panel__item">
-          <h2>Coordenada alvo</h2>
-          <p id="target-coordinate" aria-live="polite">(?, ?)</p>
-        </div>
-        <div class="status-panel__item">
-          <h2>Estrelas</h2>
-          <p id="score" aria-live="polite">0</p>
-        </div>
-        <div class="status-panel__item">
-          <h2>Tentativas</h2>
-          <p id="attempts" aria-live="polite">0</p>
-        </div>
+        <article class="status-panel__item">
+          <h2>Missão</h2>
+          <p id="round" class="status-panel__big">1 / 8</p>
+        </article>
+        <article class="status-panel__item">
+          <h2>Marcação-chave</h2>
+          <p id="target-coordinate" class="status-panel__big" aria-live="polite">
+            (?, ?)
+          </p>
+        </article>
+        <article class="status-panel__item">
+          <h2>Estrelas-guia</h2>
+          <p id="score" class="status-panel__big" aria-live="polite">0</p>
+        </article>
+        <article class="status-panel__item">
+          <h2>Energia</h2>
+          <div class="energy-meter" role="group" aria-label="Energia restante">
+            <div class="energy-meter__track">
+              <div class="energy-meter__fill" id="energy-bar"></div>
+            </div>
+            <span id="energy-label" class="energy-meter__label" aria-live="polite">
+              3 energias
+            </span>
+          </div>
+        </article>
       </section>
 
-      <section class="play-area" aria-label="Área principal do jogo">
-        <div class="axes">
-          <div class="axes__y-label" aria-hidden="true">Y</div>
-          <div class="axes__x-label" aria-hidden="true">X</div>
+      <section class="play-area" aria-label="Mapa das coordenadas">
+        <div class="play-area__bg" aria-hidden="true"></div>
+        <div class="axes" aria-hidden="true">
+          <div class="axes__y-label">Y</div>
+          <div class="axes__x-label">X</div>
         </div>
-        <div class="grid" role="grid" aria-label="Tabuleiro de coordenadas">
-          <!-- As casas serão geradas pelo JavaScript -->
-        </div>
+        <div
+          class="grid"
+          role="grid"
+          aria-label="Tabuleiro de coordenadas da Floresta das Estrelas"
+        ></div>
         <div class="axis axis--left" aria-hidden="true"></div>
         <div class="axis axis--bottom" aria-hidden="true"></div>
       </section>
 
-      <section class="feedback" aria-live="polite" aria-atomic="true">
-        Clique na casa que combina com a coordenada mostrada acima.
-      </section>
-
-      <section class="controls">
-        <button id="hint-button" type="button">Preciso de uma dica!</button>
-        <button id="reset-button" type="button">Jogar de novo</button>
-      </section>
-
-      <section class="about">
-        <h2>Dicas de aprendizado</h2>
-        <ul>
-          <li>O primeiro número é o eixo <strong>X</strong> (horizontal).</li>
-          <li>O segundo número é o eixo <strong>Y</strong> (vertical).</li>
-          <li>Conte a partir do canto inferior esquerdo do tabuleiro.</li>
-          <li>
-            Você ganha uma estrela quando acerta de primeira. Tente conquistar as
-            10!
+      <section class="skill-panel" aria-label="Livro de habilidades">
+        <h2>Livro de habilidades</h2>
+        <ul class="skill-list">
+          <li class="skill" data-skill="spark">
+            <h3>Faísca de Precisão</h3>
+            <p>Acerta a marcação à primeira tentativa e ganha 2 estrelas-guia.</p>
+          </li>
+          <li class="skill" data-skill="shield">
+            <h3>Escudo de Quadrícula</h3>
+            <p>Usa uma dica e mantém 3 energias. Acerta depois e ganhas 1 estrela.</p>
+          </li>
+          <li class="skill" data-skill="bloom">
+            <h3>Flor Luminescente</h3>
+            <p>Acerta três missões seguidas e liberta uma animação especial.</p>
           </li>
         </ul>
       </section>
+
+      <section class="feedback" aria-live="polite" aria-atomic="true">
+        Observa a marcação-chave e escolhe a casa correta no mapa.
+      </section>
+
+      <section class="controls" aria-label="Painel de controlo">
+        <button id="hint-button" type="button" class="btn btn--secondary">
+          Invocar dica
+        </button>
+        <button id="skill-button" type="button" class="btn btn--primary">
+          Ativar habilidade
+        </button>
+        <button id="reset-button" type="button" class="btn btn--ghost">
+          Nova campanha
+        </button>
+      </section>
+
+      <section class="about">
+        <h2>Como ser um explorador coordenado</h2>
+        <ol>
+          <li>O primeiro número é o eixo <strong>X</strong> — vai da esquerda para a direita.</li>
+          <li>O segundo número é o eixo <strong>Y</strong> — sobe do chão até ao céu.</li>
+          <li>Conta sempre a partir do canto inferior esquerdo.</li>
+          <li>Usa as energias com cuidado. Tens apenas três por missão!</li>
+          <li>Recolhe estrelas-guia para desbloquear novas habilidades mágicas.</li>
+        </ol>
+      </section>
     </main>
+
+    <dialog class="modal" id="skill-modal" aria-modal="true" aria-live="polite">
+      <form method="dialog" class="modal__content">
+        <h2 id="skill-modal-title">Habilidade ativada!</h2>
+        <p id="skill-modal-body">
+          Usa o poder da Faísca de Precisão para apontar à casa exata.
+        </p>
+        <button type="submit" class="btn btn--modal">Entendido!</button>
+      </form>
+    </dialog>
 
     <script src="script.js" type="module"></script>
   </body>
