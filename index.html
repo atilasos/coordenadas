@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caça às Coordenadas</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page__header">
+        <h1>Caça às Coordenadas</h1>
+        <p>
+          Ajude o explorador a encontrar os tesouros do mapa! Observe as
+          coordenadas, clique no quadradinho correto e ganhe estrelas.
+        </p>
+      </header>
+
+      <section class="status-panel" aria-label="Painel do jogo">
+        <div class="status-panel__item">
+          <h2>Rodada</h2>
+          <p id="round">1 / 10</p>
+        </div>
+        <div class="status-panel__item">
+          <h2>Coordenada alvo</h2>
+          <p id="target-coordinate" aria-live="polite">(?, ?)</p>
+        </div>
+        <div class="status-panel__item">
+          <h2>Estrelas</h2>
+          <p id="score" aria-live="polite">0</p>
+        </div>
+        <div class="status-panel__item">
+          <h2>Tentativas</h2>
+          <p id="attempts" aria-live="polite">0</p>
+        </div>
+      </section>
+
+      <section class="play-area" aria-label="Área principal do jogo">
+        <div class="axes">
+          <div class="axes__y-label" aria-hidden="true">Y</div>
+          <div class="axes__x-label" aria-hidden="true">X</div>
+        </div>
+        <div class="grid" role="grid" aria-label="Tabuleiro de coordenadas">
+          <!-- As casas serão geradas pelo JavaScript -->
+        </div>
+        <div class="axis axis--left" aria-hidden="true"></div>
+        <div class="axis axis--bottom" aria-hidden="true"></div>
+      </section>
+
+      <section class="feedback" aria-live="polite" aria-atomic="true">
+        Clique na casa que combina com a coordenada mostrada acima.
+      </section>
+
+      <section class="controls">
+        <button id="hint-button" type="button">Preciso de uma dica!</button>
+        <button id="reset-button" type="button">Jogar de novo</button>
+      </section>
+
+      <section class="about">
+        <h2>Dicas de aprendizado</h2>
+        <ul>
+          <li>O primeiro número é o eixo <strong>X</strong> (horizontal).</li>
+          <li>O segundo número é o eixo <strong>Y</strong> (vertical).</li>
+          <li>Conte a partir do canto inferior esquerdo do tabuleiro.</li>
+          <li>
+            Você ganha uma estrela quando acerta de primeira. Tente conquistar as
+            10!
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
+
